@@ -244,10 +244,19 @@ class Model(torch.nn.Module):
             >>> model = Model()
             >>> model._new("yolo11n.yaml", task="detect", verbose=True)
         """
+        from ultralytics.nn.tasks import parse_custom_model
+        
         cfg_dict = yaml_model_load(cfg)
         self.cfg = cfg
         self.task = task or guess_model_task(cfg_dict)
-        self.model = (model or self._smart_load("model"))(cfg_dict, verbose=verbose and RANK == -1)  # build model
+        
+        # Try to load custom model first
+        custom_model = parse_custom_model(cfg_dict, ch=3, nc=cfg_dict.get('nc', 80), verbose=verbose and RANK == -1)
+        if custom_model is not None:
+            self.model = custom_model
+        else:
+            self.model = (model or self._smart_load("model"))(cfg_dict, verbose=verbose and RANK == -1)  # build model
+        
         self.overrides["model"] = self.cfg
         self.overrides["task"] = self.task
 

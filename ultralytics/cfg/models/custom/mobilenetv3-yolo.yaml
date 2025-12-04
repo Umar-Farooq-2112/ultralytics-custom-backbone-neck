@@ -6,6 +6,7 @@
 
 # Parameters
 nc: 80  # number of classes
+custom_model: mobilenetv3-yolo  # REQUIRED: identifier for custom model loader
 scales:
   # This model doesn't use scaling since backbone is pretrained MobileNetV3
   # Channels are fixed: P3=24, P4=40, P5=160 from backbone

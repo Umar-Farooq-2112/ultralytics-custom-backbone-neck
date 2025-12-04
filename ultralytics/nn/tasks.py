@@ -36,15 +36,18 @@ from ultralytics.nn.modules import (
     C3Ghost,
     C3k2,
     C3x,
+    CBAM_ChannelOnly,
     CBFuse,
     CBLinear,
     Classify,
     Concat,
     Conv,
     Conv2,
+    ConvBNAct,
     ConvTranspose,
     Detect,
     DWConv,
+    DWConvCustom,
     DWConvTranspose2d,
     Focus,
     GhostBottleneck,
@@ -54,6 +57,8 @@ from ultralytics.nn.modules import (
     ImagePoolingAttn,
     Index,
     LRPCHead,
+    MobileNetV3BackboneDW,
+    P5Transformer,
     Pose,
     RepC3,
     RepConv,
@@ -63,7 +68,9 @@ from ultralytics.nn.modules import (
     RTDETRDecoder,
     SCDown,
     Segment,
+    SimSPPF,
     TorchVision,
+    UltraLiteNeckDW,
     WorldDetect,
     YOLOEDetect,
     YOLOESegment,
@@ -92,6 +99,35 @@ from ultralytics.utils.torch_utils import (
     smart_inference_mode,
     time_sync,
 )
+
+
+def parse_custom_model(cfg, ch=3, nc=80, verbose=True):
+    """Parse custom model configurations and return custom model if matched.
+    
+    Args:
+        cfg (dict | str): Model configuration dictionary or path
+        ch (int): Number of input channels
+        nc (int): Number of classes
+        verbose (bool): Print model information
+        
+    Returns:
+        Custom model instance or None if not a custom model
+    """
+    from ultralytics.nn.custom_models import MobileNetV3YOLO
+    
+    # Check if it's a custom model identifier
+    if isinstance(cfg, dict):
+        cfg_str = str(cfg.get('custom_model', '')).lower()
+    elif isinstance(cfg, str):
+        cfg_str = cfg.lower()
+    else:
+        return None
+    
+    # MobileNetV3-YOLO custom model
+    if 'mobilenetv3' in cfg_str or 'mobilenet-v3' in cfg_str:
+        return MobileNetV3YOLO(nc=nc, pretrained=True, verbose=verbose)
+    
+    return None
 
 
 class BaseModel(torch.nn.Module):

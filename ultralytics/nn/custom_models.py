@@ -35,6 +35,8 @@ class MobileNetV3YOLO(nn.Module):
         """
         super().__init__()
         self.nc = nc
+        self.task = 'detect'  # Task type
+        self.names = {i: f"{i}" for i in range(nc)}
         
         # Initialize backbone and neck
         self.backbone = MobileNetV3BackboneDW(pretrained=pretrained)
@@ -48,8 +50,10 @@ class MobileNetV3YOLO(nn.Module):
         self.head = Detect(nc=nc, ch=tuple(neck_out_channels))
         
         # Model metadata
-        self.names = {i: f"{i}" for i in range(nc)}
         self.stride = torch.tensor([8, 16, 32])  # P3, P4, P5 strides
+        self.yaml = {'nc': nc, 'custom_model': 'mobilenetv3-yolo'}  # Model config
+        self.args = {}  # Training arguments (set by trainer)
+        self.pt_path = None  # Path to checkpoint
         
         # Initialize head
         self._initialize_head()
@@ -155,7 +159,21 @@ class MobileNetV3YOLO(nn.Module):
             return torch.cat(y, -1)
         return self.forward(x)
     
-    @property
-    def task(self):
-        """Return task type."""
-        return 'detect'
+    def load(self, weights):
+        """Load weights from checkpoint.
+        
+        Args:
+            weights (str | dict): Path to checkpoint or state dict
+        """
+        if isinstance(weights, str):
+            import torch
+            ckpt = torch.load(weights, map_location='cpu')
+            if isinstance(ckpt, dict):
+                state_dict = ckpt.get('model', ckpt)
+                if hasattr(state_dict, 'state_dict'):
+                    state_dict = state_dict.state_dict()
+            else:
+                state_dict = ckpt
+            self.load_state_dict(state_dict, strict=False)
+        else:
+            self.load_state_dict(weights, strict=False)
