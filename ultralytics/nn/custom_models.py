@@ -23,6 +23,7 @@ class MobileNetV3YOLO(nn.Module):
         head (Detect): Detection head
         stride (torch.Tensor): Model stride values
         names (dict): Class names
+        model (nn.ModuleList): Sequential list of modules for compatibility with v8DetectionLoss
     """
     
     def __init__(self, nc=80, pretrained=True, verbose=True):
@@ -49,6 +50,19 @@ class MobileNetV3YOLO(nn.Module):
         # YOLOv8n-style head with our custom neck outputs
         self.head = Detect(nc=nc, ch=tuple(neck_out_channels))
         
+        # Create model list for compatibility with v8DetectionLoss
+        # It expects model.model[-1] to be the Detect head
+        self.model = nn.ModuleList([self.backbone, self.neck, self.head])
+        
+        # Store args for loss function (will be set by trainer)
+        self.args = None
+        
+        # Initialize head
+        self._initialize_head()
+        
+        if verbose:
+            self.info()
+        
         # Model metadata
         self.stride = torch.tensor([8, 16, 32])  # P3, P4, P5 strides
         self.yaml = {'nc': nc, 'custom_model': 'mobilenetv3-yolo'}  # Model config
@@ -74,7 +88,7 @@ class MobileNetV3YOLO(nn.Module):
             self.stride = m.stride
             m.bias_init()  # Initialize biases
     
-    def forward(self, x):
+    def forward(self, x, *args, **kwargs):
         """Forward pass through the model.
         
         Args:
@@ -93,6 +107,28 @@ class MobileNetV3YOLO(nn.Module):
         outputs = self.head(fused_feats)
         
         return outputs
+    
+    def loss(self, batch, preds=None):
+        """Compute loss.
+
+        Args:
+            batch (dict): Batch to compute loss on.
+            preds (torch.Tensor | list[torch.Tensor], optional): Predictions.
+            
+        Returns:
+            (tuple): (total_loss, loss_items)
+        """
+        if not hasattr(self, 'criterion') or self.criterion is None:
+            self.criterion = self.init_criterion()
+
+        if preds is None:
+            preds = self.forward(batch["img"])
+        return self.criterion(preds, batch)
+    
+    def init_criterion(self):
+        """Initialize the loss criterion for the detection model."""
+        from ultralytics.utils.loss import v8DetectionLoss
+        return v8DetectionLoss(self)
     
     def fuse(self, verbose=True):
         """Fuse Conv2d + BatchNorm2d layers for inference optimization.
