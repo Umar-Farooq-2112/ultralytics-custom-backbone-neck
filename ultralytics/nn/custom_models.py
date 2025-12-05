@@ -4,9 +4,47 @@
 import torch
 import torch.nn as nn
 
-from ultralytics.nn.modules import MobileNetV3BackboneDW, UltraLiteNeckDW, Detect
+from ultralytics.nn.modules import MobileNetV3BackboneEnhanced, YOLONeckEnhanced, Detect, Conv
 from ultralytics.nn.tasks import DetectionModel
 from ultralytics.utils import LOGGER
+
+
+class EnhancedDetectHead(nn.Module):
+    """Enhanced detection head with additional conv layers before final detection."""
+    
+    def __init__(self, nc, ch):
+        """Initialize enhanced detection head.
+        
+        Args:
+            nc (int): Number of classes
+            ch (tuple): Input channels for each detection level [P3, P4, P5]
+        """
+        super().__init__()
+        
+        # Single refinement layer before detection
+        self.pre_detect_p3 = Conv(ch[0], ch[0], k=3, s=1)
+        self.pre_detect_p4 = Conv(ch[1], ch[1], k=3, s=1)
+        self.pre_detect_p5 = Conv(ch[2], ch[2], k=3, s=1)
+        
+        # Standard YOLO detect head
+        self.detect = Detect(nc=nc, ch=ch)
+        
+    def forward(self, x):
+        """Forward pass through enhanced detection head.
+        
+        Args:
+            x (list): Feature maps from neck [P3, P4, P5]
+            
+        Returns:
+            Detection output
+        """
+        # Refine features before detection
+        x3 = self.pre_detect_p3(x[0])
+        x4 = self.pre_detect_p4(x[1])
+        x5 = self.pre_detect_p5(x[2])
+        
+        # Detection
+        return self.detect([x3, x4, x5])
 
 
 class MobileNetV3YOLO(nn.Module):
@@ -40,19 +78,18 @@ class MobileNetV3YOLO(nn.Module):
         self.names = {i: f"{i}" for i in range(nc)}
         
         # Initialize backbone and neck
-        self.backbone = MobileNetV3BackboneDW(pretrained=pretrained)
-        self.neck = UltraLiteNeckDW(in_channels=self.backbone.out_channels)
+        self.backbone = MobileNetV3BackboneEnhanced(pretrained=pretrained)
+        self.neck = YOLONeckEnhanced(in_channels=self.backbone.out_channels)
         
-        # Neck output channels: [128, 192, 256] for [P3, P4, P5] - enhanced for 4-5M params
-        neck_out_channels = [128, 192, 256]
+        # Neck output channels: [96, 128, 192] for [P3, P4, P5]
+        neck_out_channels = [96, 128, 192]
         
-        # Initialize detection head
-        # YOLOv8n-style head with our custom neck outputs
-        self.head = Detect(nc=nc, ch=tuple(neck_out_channels))
+        # Initialize enhanced detection head with additional conv layers
+        self.head = EnhancedDetectHead(nc=nc, ch=tuple(neck_out_channels))
         
         # Create model list for compatibility with v8DetectionLoss
         # It expects model.model[-1] to be the Detect head
-        self.model = nn.ModuleList([self.backbone, self.neck, self.head])
+        self.model = nn.ModuleList([self.backbone, self.neck, self.head.detect])
         
         # Store args for loss function (will be set by trainer)
         self.args = None
@@ -77,7 +114,7 @@ class MobileNetV3YOLO(nn.Module):
     
     def _initialize_head(self):
         """Initialize detection head with proper strides."""
-        m = self.head
+        m = self.head.detect  # Access Detect inside EnhancedDetectHead
         if isinstance(m, Detect):
             s = 640  # default image size
             m.inplace = True
@@ -103,7 +140,7 @@ class MobileNetV3YOLO(nn.Module):
         
         # Inference mode - standard forward pass
         # Backbone: extract multi-scale features
-        feats = self.backbone(x)  # [P3, P4, P5] with channels [24, 40, 160]
+        feats = self.backbone(x)  # [P3, P4, P5] with channels [96, 144, 256]
         
         # Neck: fuse features
         fused_feats = self.neck(feats)  # [P3, P4, P5] with channels [32, 48, 64]
