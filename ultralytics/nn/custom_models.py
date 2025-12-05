@@ -551,15 +551,20 @@ class CSPResNetYOLOP2P2(nn.Module):
         if hasattr(m, 'anchors') and len(m.anchors) > 0:
             m.anchors /= m.stride.view(-1, 1, 1)
     
-    def forward(self, x):
+    def forward(self, x, *args, **kwargs):
         """Forward pass.
         
         Args:
-            x (torch.Tensor): Input tensor [B, 3, H, W]
+            x (torch.Tensor | dict): Input tensor [B, 3, H, W] or batch dict during training
             
         Returns:
-            torch.Tensor or list: Detection output
+            torch.Tensor or list or tuple: Detection output or (loss, loss_items) during training
         """
+        # Training mode - if input is dict, compute loss
+        if isinstance(x, dict):
+            return self.loss(x, *args, **kwargs)
+        
+        # Inference mode - standard forward pass
         # Backbone: Extract multi-scale features (Priority 1: P2, P3, P4, P5)
         feats = self.backbone(x)
         
@@ -570,8 +575,16 @@ class CSPResNetYOLOP2P2(nn.Module):
         return self.head(feats)
     
     def loss(self, batch, preds=None):
-        """Compute loss."""
-        if not hasattr(self, 'criterion'):
+        """Compute loss.
+        
+        Args:
+            batch (dict): Batch to compute loss on
+            preds: Predictions (optional)
+            
+        Returns:
+            (tuple): (total_loss, loss_items)
+        """
+        if not hasattr(self, 'criterion') or self.criterion is None:
             self.criterion = self.init_criterion()
         
         if preds is None:
