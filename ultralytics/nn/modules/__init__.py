@@ -102,9 +102,9 @@ from .transformer import (
     TransformerLayer,
 )
 from .custom_mobilenet_blocks import (
-    EnhancedCBAM,
-    MobileNetV3BackboneEnhanced,
-    YOLONeckEnhanced,
+    ECAAttention,
+    CSPResNetBackbone,
+    YOLONeckP2Enhanced,
 )
 
 __all__ = (
@@ -115,13 +115,13 @@ __all__ = (
     "C3",
     "C3TR",
     "CBAM",
-    "EnhancedCBAM",
+    "CSPResNetBackbone",
     "CIB",
     "DFL",
+    "ECAAttention",
     "ELAN1",
     "MLP",
-    "MobileNetV3BackboneEnhanced",
-    "YOLONeckEnhanced",
+    "YOLONeckP2Enhanced",
     "OBB",
     "PSA",
     "SPP",
