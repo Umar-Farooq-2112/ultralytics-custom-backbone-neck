@@ -469,8 +469,9 @@ class DetectionModel(BaseModel):
                 self.stride = m.stride
                 self.model.train()  # Set model back to training(default) mode
                 m.bias_init()  # only run once
-        else:
-            self.stride = torch.Tensor([32])  # default stride for i.e. RTDETR
+            else:
+                self.stride = torch.Tensor([32])  # default stride for i.e. RTDETR
+        # else: custom model already has stride set
 
         # Init weights, biases
         initialize_weights(self)
