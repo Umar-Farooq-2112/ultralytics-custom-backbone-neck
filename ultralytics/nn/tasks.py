@@ -109,7 +109,7 @@ def parse_custom_model(cfg, ch=3, nc=80, verbose=True):
     Returns:
         Custom model instance or None if not a custom model
     """
-    from ultralytics.nn.custom_models import MobileNetV3YOLO, CSPResNetYOLO
+    from ultralytics.nn.custom_models import MobileNetV3YOLO, CSPResNetYOLO, CSPResNetYOLOP2P2
     
     # Check if it's a custom model identifier
     if isinstance(cfg, dict):
@@ -118,6 +118,10 @@ def parse_custom_model(cfg, ch=3, nc=80, verbose=True):
         cfg_str = cfg.lower()
     else:
         return None
+    
+    # Priority 1+2: CSPResNet + P2 detection + Deformable Conv + CBAM
+    if 'p2-2' in cfg_str or 'priority2' in cfg_str or 'p2p2' in cfg_str:
+        return CSPResNetYOLOP2P2(nc=nc, pretrained=False, verbose=verbose)
     
     # Priority 1: CSPResNet + P2 detection model
     if 'cspresnet' in cfg_str or 'priority1' in cfg_str or 'p2' in cfg_str:

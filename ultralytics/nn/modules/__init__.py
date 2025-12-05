@@ -108,6 +108,9 @@ from .custom_mobilenet_blocks import (
     ECAAttention,
     CSPResNetBackbone,
     YOLONeckP2Enhanced,
+    CBAMAttention,
+    DeformableConv2d,
+    YOLONeckP2EnhancedV2,
 )
 
 __all__ = (
