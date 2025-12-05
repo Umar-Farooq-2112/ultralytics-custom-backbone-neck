@@ -105,6 +105,9 @@ from .custom_mobilenet_blocks import (
     EnhancedCBAM,
     MobileNetV3BackboneEnhanced,
     YOLONeckEnhanced,
+    ECAAttention,
+    CSPResNetBackbone,
+    YOLONeckP2Enhanced,
 )
 
 __all__ = (
