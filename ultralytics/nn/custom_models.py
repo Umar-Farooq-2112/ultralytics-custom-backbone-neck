@@ -516,6 +516,9 @@ class CSPResNetYOLOP2P2(nn.Module):
         self.task = 'detect'
         self.names = {i: f'class{i}' for i in range(nc)}
         
+        # YAML config for model reloading
+        self.yaml = {'nc': nc, 'custom_model': 'cspresnet-yolo-p2-2'}
+        
         # Priority 1: CSPResNet backbone with ECA attention
         self.backbone = CSPResNetBackbone()
         backbone_out_channels = [64, 128, 256, 384]  # P2, P3, P4, P5
